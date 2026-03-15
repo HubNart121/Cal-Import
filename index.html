@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เครื่องคำนวณค่านำเข้าสินค้า (Multi-Project)</title>
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Kanit', sans-serif; }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .tab-active { background-color: #2563eb; color: white; }
+        .tab-inactive { background-color: #f1f5f9; color: #64748b; }
+        
+        #pdfReport {
+            width: 800px;
+            padding: 40px;
+            background: white;
+            position: absolute;
+            left: -9999px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen py-8 px-4">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center p-4 bg-blue-600 rounded-3xl mb-4 shadow-xl text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+            </div>
+            <h1 class="text-3xl font-bold text-slate-900">เครื่องคำนวณค่านำเข้าสินค้า</h1>
+            <p class="text-slate-500 mt-2 text-sm">จัดการหลายรายการและสรุปยอดรวม (Multi-Item Management)</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Input Card -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 relative">
+                <div class="flex items-center justify-between mb-6 border-b pb-3">
+                    <div class="flex items-center gap-2 font-semibold text-lg text-slate-700">
+                        ข้อมูลสินค้า
+                    </div>
+                    <button onclick="clearData()" class="bg-rose-50 text-rose-600 border border-rose-100 px-3 py-1.5 rounded-xl hover:bg-rose-100 transition-all flex items-center gap-1.5 text-xs font-semibold">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        ล้าง
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">ชื่อรายการ / รหัสสินค้า</label>
+                        <input type="text" id="itemName" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="เช่น กล่องที่ 1">
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">น้ำหนัก (kg)</label>
+                        <input type="number" id="weight" class="calc-input w-full p-3 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-semibold text-blue-700" placeholder="0.00">
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex p-1 bg-slate-100 rounded-xl">
+                            <button id="tabDim" onclick="switchMode('dim')" class="flex-1 py-1.5 text-[10px] font-medium rounded-lg transition-all tab-active">ระบุขนาด</button>
+                            <button id="tabCbm" onclick="switchMode('cbm')" class="flex-1 py-1.5 text-[10px] font-medium rounded-lg transition-all tab-inactive">ระบุคิวตรง</button>
+                        </div>
+
+                        <div id="modeDim" class="grid grid-cols-3 gap-2">
+                            <input type="number" id="width" class="calc-input w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400" placeholder="กว้าง">
+                            <input type="number" id="length" class="calc-input w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400" placeholder="ยาว">
+                            <input type="number" id="height" class="calc-input w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400" placeholder="สูง">
+                        </div>
+
+                        <div id="modeCbm" class="hidden">
+                            <input type="number" id="inputDirectCbm" class="calc-input w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" placeholder="จำนวนคิว (CBM)">
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+                        <div class="space-y-1">
+                            <label class="text-[10px] text-slate-400 uppercase">เรท/KG</label>
+                            <input type="number" id="rateKg" value="15" class="calc-input w-full p-2 text-sm border border-slate-200 rounded-lg outline-none">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] text-slate-400 uppercase">เรท/CBM</label>
+                            <input type="number" id="rateCbm" value="6000" class="calc-input w-full p-2 text-sm border border-slate-200 rounded-lg outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Selection Summary -->
+            <div class="lg:col-span-2 space-y-6">
+                <div id="resultCard" class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col h-full min-h-[300px]">
+                    <div class="flex items-center justify-between mb-6 border-b pb-3 text-slate-700">
+                        <div class="flex items-center gap-2 font-semibold text-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            ตัวอย่างคำนวณรายการนี้
+                        </div>
+                    </div>
+
+                    <div id="emptyState" class="flex-1 flex flex-col items-center justify-center text-slate-400 text-center py-10">
+                        <p>กรอกข้อมูลสินค้าเพื่อดูการเปรียบเทียบราคา</p>
+                    </div>
+
+                    <div id="resultContent" class="hidden space-y-6">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                                <p class="text-[10px] text-slate-400 uppercase mb-1">CBM</p>
+                                <p class="text-xl font-bold text-slate-900" id="dispCbm">0.0000</p>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                                <p class="text-[10px] text-slate-400 uppercase mb-1">ราคา (KG)</p>
+                                <p class="text-lg font-semibold text-slate-600" id="dispPriceWeight">0.00</p>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                                <p class="text-[10px] text-slate-400 uppercase mb-1">ราคา (CBM)</p>
+                                <p class="text-lg font-semibold text-slate-600" id="dispPriceCbm">0.00</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between p-6 bg-blue-600 rounded-[2rem] text-white shadow-lg">
+                            <div>
+                                <p class="text-xs opacity-80 uppercase tracking-widest mb-1">ราคาที่ดีที่สุดสำหรับรายการนี้</p>
+                                <p class="text-4xl font-bold" id="dispTotal">0.00</p>
+                            </div>
+                            <button onclick="addItem()" class="bg-white text-blue-600 px-6 py-3 rounded-2xl font-bold hover:bg-blue-50 transition-all flex items-center gap-2 shadow-md">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                เพิ่มลงรายการ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multi-Item Table -->
+        <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+            <div class="flex items-center justify-between mb-6 border-b pb-4">
+                <div class="flex items-center gap-2 font-bold text-xl text-slate-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    รายการสินค้าทั้งหมด
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="downloadPDF()" id="pdfBtn" class="hidden bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 hover:bg-slate-900 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3 font-semibold rounded-l-xl">รายการ</th>
+                            <th class="px-4 py-3 font-semibold text-center">น้ำหนัก (KG)</th>
+                            <th class="px-4 py-3 font-semibold text-center">ปริมาตร (CBM)</th>
+                            <th class="px-4 py-3 font-semibold text-center">การคิดราคา</th>
+                            <th class="px-4 py-3 font-semibold text-right">ยอดชำระ</th>
+                            <th class="px-4 py-3 font-semibold text-center rounded-r-xl">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemListBody">
+                        <!-- Items will be injected here -->
+                        <tr>
+                            <td colspan="6" class="py-12 text-center text-slate-400">ยังไม่มีรายการสินค้าถูกบันทึก</td>
+                        </tr>
+                    </tbody>
+                    <tfoot id="tableFooter" class="hidden">
+                        <tr class="border-t-2 border-slate-100 bg-blue-50/50">
+                            <td class="px-4 py-4 font-bold text-slate-900">ยอดรวมทั้งหมด</td>
+                            <td class="px-4 py-4 font-bold text-center text-blue-700" id="totalWeight">0.00</td>
+                            <td class="px-4 py-4 font-bold text-center text-blue-700" id="totalCbm">0.0000</td>
+                            <td></td>
+                            <td class="px-4 py-4 font-bold text-right text-rose-600 text-lg" id="grandTotal">0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden PDF Template -->
+    <div id="pdfReport">
+        <div style="border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between;">
+            <div>
+                <h1 style="font-size: 28px; font-weight: bold; color: #1e293b; margin: 0;">ใบสรุปค่านำเข้าสินค้า</h1>
+                <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0;">Report Date: <span id="pdfDate"></span></p>
+            </div>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <thead style="background: #f1f5f9;">
+                <tr>
+                    <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: left;">รายการ</th>
+                    <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">น้ำหนัก (KG)</th>
+                    <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: center;">ปริมาตร (CBM)</th>
+                    <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: right;">ยอดชำระ</th>
+                </tr>
+            </thead>
+            <tbody id="pdfTableBody"></tbody>
+            <tfoot>
+                <tr style="background: #eff6ff; font-weight: bold;">
+                    <td style="padding: 15px; border: 1px solid #e2e8f0;">รวมสุทธิ</td>
+                    <td id="pdfTotalWeight" style="padding: 15px; border: 1px solid #e2e8f0; text-align: center;"></td>
+                    <td id="pdfTotalCbm" style="padding: 15px; border: 1px solid #e2e8f0; text-align: center;"></td>
+                    <td id="pdfGrandTotal" style="padding: 15px; border: 1px solid #e2e8f0; text-align: right; color: #be123c; font-size: 18px;"></td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        <div style="text-align: right; font-size: 10px; color: #94a3b8; margin-top: 50px;">
+            * คำนวณโดยเปรียบเทียบราคาที่สูงที่สุดระหว่างน้ำหนักและปริมาตรต่อชิ้น
+        </div>
+    </div>
+
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        // Firebase Config (Global environment provided)
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'import-calc-v1';
+
+        // State Management
+        let currentMode = 'dim';
+        let savedItems = [];
+        let currentUser = null;
+
+        // UI References
+        const calcInputs = document.querySelectorAll('.calc-input');
+        const emptyState = document.getElementById('emptyState');
+        const resultContent = document.getElementById('resultContent');
+        const itemListBody = document.getElementById('itemListBody');
+        const tableFooter = document.getElementById('tableFooter');
+        const pdfBtn = document.getElementById('pdfBtn');
+
+        // Init Auth
+        const initAuth = async () => {
+            try {
+                await signInAnonymously(auth);
+            } catch (e) { console.error(e); }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) loadData();
+        });
+
+        // Firestore Operations
+        const loadData = () => {
+            if (!currentUser) return;
+            const projectsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'projects');
+            onSnapshot(projectsRef, (snapshot) => {
+                savedItems = [];
+                snapshot.forEach(doc => savedItems.push({ id: doc.id, ...doc.data() }));
+                renderItems();
+            }, (err) => console.error("Firestore error:", err));
+        };
+
+        const saveToCloud = async (item) => {
+            if (!currentUser) return;
+            const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'projects', item.id);
+            await setDoc(docRef, item);
+        };
+
+        const deleteFromCloud = async (id) => {
+            if (!currentUser) return;
+            const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'projects', id);
+            await deleteDoc(docRef);
+        };
+
+        // Calculation Logic
+        window.switchMode = (mode) => {
+            currentMode = mode;
+            const modeDim = document.getElementById('modeDim');
+            const modeCbm = document.getElementById('modeCbm');
+            const tabDim = document.getElementById('tabDim');
+            const tabCbm = document.getElementById('tabCbm');
+
+            if (mode === 'dim') {
+                modeDim.classList.remove('hidden');
+                modeCbm.classList.add('hidden');
+                tabDim.classList.replace('tab-inactive', 'tab-active');
+                tabCbm.classList.replace('tab-active', 'tab-inactive');
+            } else {
+                modeDim.classList.add('hidden');
+                modeCbm.classList.remove('hidden');
+                tabCbm.classList.replace('tab-inactive', 'tab-active');
+                tabDim.classList.replace('tab-active', 'tab-inactive');
+            }
+            calculateCurrent();
+        };
+
+        window.calculateCurrent = () => {
+            const weight = parseFloat(document.getElementById('weight').value) || 0;
+            const rKg = parseFloat(document.getElementById('rateKg').value) || 15;
+            const rCbm = parseFloat(document.getElementById('rateCbm').value) || 6000;
+            
+            let cbm = 0;
+            if (currentMode === 'dim') {
+                const w = parseFloat(document.getElementById('width').value) || 0;
+                const l = parseFloat(document.getElementById('length').value) || 0;
+                const h = parseFloat(document.getElementById('height').value) || 0;
+                if (w && l && h) cbm = (w * l * h) / 1000000;
+            } else {
+                cbm = parseFloat(document.getElementById('inputDirectCbm').value) || 0;
+            }
+
+            if (weight > 0 || cbm > 0) {
+                emptyState.classList.add('hidden');
+                resultContent.classList.remove('hidden');
+
+                const pWeight = weight * rKg;
+                const pCbm = cbm * rCbm;
+                const final = Math.max(pWeight, pCbm);
+
+                document.getElementById('dispCbm').innerText = cbm.toFixed(4);
+                document.getElementById('dispPriceWeight').innerText = pWeight.toLocaleString();
+                document.getElementById('dispPriceCbm').innerText = pCbm.toLocaleString();
+                document.getElementById('dispTotal').innerText = final.toLocaleString(undefined, {minimumFractionDigits: 2});
+                return { weight, cbm, final, pWeight, pCbm, rKg, rCbm };
+            } else {
+                emptyState.classList.remove('hidden');
+                resultContent.classList.add('hidden');
+                return null;
+            }
+        };
+
+        window.addItem = async () => {
+            const result = calculateCurrent();
+            if (!result) return;
+
+            const name = document.getElementById('itemName').value || `รายการที่ ${savedItems.length + 1}`;
+            const newItem = {
+                id: Date.now().toString(),
+                name,
+                weight: result.weight,
+                cbm: result.cbm,
+                cost: result.final,
+                method: result.pWeight >= result.pCbm ? 'KG' : 'CBM',
+                timestamp: Date.now()
+            };
+
+            await saveToCloud(newItem);
+            window.clearData(false); // clear inputs but keep rates
+        };
+
+        window.removeItem = async (id) => {
+            await deleteFromCloud(id);
+        };
+
+        window.clearData = (clearRates = true) => {
+            document.getElementById('itemName').value = '';
+            document.getElementById('weight').value = '';
+            document.getElementById('width').value = '';
+            document.getElementById('length').value = '';
+            document.getElementById('height').value = '';
+            document.getElementById('inputDirectCbm').value = '';
+            if (clearRates) {
+                document.getElementById('rateKg').value = 15;
+                document.getElementById('rateCbm').value = 6000;
+            }
+            calculateCurrent();
+        };
+
+        const renderItems = () => {
+            if (savedItems.length === 0) {
+                itemListBody.innerHTML = '<tr><td colspan="6" class="py-12 text-center text-slate-400 text-xs">ยังไม่มีรายการสินค้าถูกบันทึก</td></tr>';
+                tableFooter.classList.add('hidden');
+                pdfBtn.classList.add('hidden');
+                return;
+            }
+
+            tableFooter.classList.remove('hidden');
+            pdfBtn.classList.remove('hidden');
+            itemListBody.innerHTML = '';
+            
+            let totalW = 0, totalC = 0, grandT = 0;
+
+            savedItems.sort((a,b) => b.timestamp - a.timestamp).forEach(item => {
+                totalW += item.weight;
+                totalC += item.cbm;
+                grandT += item.cost;
+
+                const row = document.createElement('tr');
+                row.className = "border-b border-slate-50 hover:bg-slate-50/50 transition-colors";
+                row.innerHTML = `
+                    <td class="px-4 py-4 font-medium text-slate-700">${item.name}</td>
+                    <td class="px-4 py-4 text-center text-slate-600">${item.weight.toFixed(2)}</td>
+                    <td class="px-4 py-4 text-center text-slate-600">${item.cbm.toFixed(4)}</td>
+                    <td class="px-4 py-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.method === 'KG' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">
+                            โดย ${item.method}
+                        </span>
+                    </td>
+                    <td class="px-4 py-4 text-right font-bold text-slate-800">${item.cost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                    <td class="px-4 py-4 text-center">
+                        <button onclick="removeItem('${item.id}')" class="text-rose-400 hover:text-rose-600 p-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </td>
+                `;
+                itemListBody.appendChild(row);
+            });
+
+            document.getElementById('totalWeight').innerText = totalW.toFixed(2);
+            document.getElementById('totalCbm').innerText = totalC.toFixed(4);
+            document.getElementById('grandTotal').innerText = grandT.toLocaleString(undefined, {minimumFractionDigits: 2});
+        };
+
+        window.downloadPDF = async () => {
+            const btn = document.getElementById('pdfBtn');
+            btn.innerText = "กำลังสร้าง...";
+            
+            document.getElementById('pdfDate').innerText = new Date().toLocaleString('th-TH');
+            const pdfBody = document.getElementById('pdfTableBody');
+            pdfBody.innerHTML = '';
+            
+            let tw=0, tc=0, gt=0;
+            savedItems.forEach(i => {
+                tw += i.weight; tc += i.cbm; gt += i.cost;
+                pdfBody.innerHTML += `
+                    <tr>
+                        <td style="padding:10px; border:1px solid #e2e8f0;">${i.name}</td>
+                        <td style="padding:10px; border:1px solid #e2e8f0; text-align:center;">${i.weight.toFixed(2)}</td>
+                        <td style="padding:10px; border:1px solid #e2e8f0; text-align:center;">${i.cbm.toFixed(4)}</td>
+                        <td style="padding:10px; border:1px solid #e2e8f0; text-align:right;">${i.cost.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+                    </tr>
+                `;
+            });
+            
+            document.getElementById('pdfTotalWeight').innerText = tw.toFixed(2);
+            document.getElementById('pdfTotalCbm').innerText = tc.toFixed(4);
+            document.getElementById('pdfGrandTotal').innerText = gt.toLocaleString(undefined,{minimumFractionDigits:2}) + " บาท";
+
+            const report = document.getElementById('pdfReport');
+            const canvas = await html2canvas(report, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`import-report-summary.pdf`);
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PDF`;
+        };
+
+        calcInputs.forEach(i => i.addEventListener('input', calculateCurrent));
+
+    </script>
+</body>
+</html>
